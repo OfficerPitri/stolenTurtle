@@ -1,0 +1,301 @@
+--advanced smart adaptive wood farming turtle by Ardevlirn
+--Instruction:
+--Create a path using cobblestone
+--place dirt around the path (only at the same Y pos than the path)
+--place turtle on the path
+--place 3 separate chest next to the turtle and the path
+--on top of the harvest chest put nothing, 
+--on top of sapling chest put cobblestone_wall
+--on top of fuel chest put stoneslab
+--place fuel in slot 1 and at least 4 sappling in slot 2
+--those next variable can be changed
+--(will say when no more variable can be changed):
+--Will try to refuel when Fuel Level is under this amount :
+local minFuelForRefuel = 800
+--Will search the chest if there is less than this amount of fuel item in inventory:
+local minFuelInInventory = 12
+--If set to true will search the chest when under this amount of sappling left in inventory :
+local goSearchSapling = false
+local minSaplingInInventory = 3
+--PS: While searching for the chest the turtle will no longer place sapling
+--and will not cut tree down
+--main variable:
+local minSlot,maxSlot = 3,16 --slot range in which the harvest is stocked
+local chestName = "minecraft:chest"
+local fuelName = "minecraft:coal"
+local fuelSlot = 1
+local saplingName = "minecraft:sapling"
+local saplingSlot = 2
+local woodName = "minecraft:log"
+local leavesName = "minecraft:leaves"
+local pathName = "minecraft:cobblestone"
+local fuelChest = "minecraft:stone_slab"
+local saplingChest = "minecraft:cobblestone_wall"
+--no more variable to change
+-------------------------------------------------------------
+
+local function Energy()
+    turtle.select(fuelSlot)
+    if turtle.getFuelLevel() ~= "unlimited" and turtle.getFuelLevel() < minFuelForRefuel then
+		local charbonNumb = turtle.getItemCount()
+		if charbonNumb > 12 then
+			turtle.refuel(10)
+		else
+			turtle.refuel(charbonNumb-2)
+		end
+	end
+end
+
+local function chemin()
+        local success, data = turtle.inspectDown()
+        if success and data.name == pathName then
+			return true
+		else
+			return false
+		end
+end
+
+local function testBlock(nameID)
+        local success, data = turtle.inspect()
+        if success and data.name == nameID then
+			return true
+		else
+			return false
+		end
+end
+ 
+local function plante()
+        turtle.select(saplingSlot)
+		if turtle.getItemCount(saplingSlot) > 2 then
+			turtle.place()
+		end
+end
+
+local function detectCoupe()
+	local success, blockUp = turtle.inspectUp()
+	if blockUp.name == woodName or blockUp.name == leavesName then
+		return true
+	else
+		return false
+	end
+end
+
+local function preventStuck()
+	local success,data = turtle.inspectDown()
+	if data.name == woodName or data.name == leavesName then
+		return true
+	else
+		return false
+	end
+end
+
+local function coupe()
+        turtle.select(1)
+			turtle.dig()
+			turtle.forward()
+            while detectCoupe() do
+                    turtle.digUp()
+                    turtle.up()
+					for i=0,3 do
+						if turtle.detect() then
+							if testBlock(woodName) then
+							
+							elseif testBlock(leavesName) then
+								turtle.dig()
+							end
+						end
+						turtle.turnRight()
+					end
+            end
+			if not turtle.back() then
+				turtle.turnRight()
+				turtle.turnRight()
+				turtle.dig()
+				turtle.forward()
+				turtle.turnRight()
+				turtle.turnRight()
+			end
+            while not chemin() do
+					if preventStuck() then
+						turtle.digDown()
+					end
+                    turtle.down()
+            end
+			plante()
+			turtle.suck()
+end
+
+local function vide(itemID)
+		local selecteddItem = 0
+        for slot = minSlot,maxSlot do
+                turtle.select(slot)
+				selecteddItem = turtle.getItemDetail()
+				if itemID and selecteddItem then
+				 	if selecteddItem.name == itemID then
+                		turtle.drop()
+					elseif itemID == "special" then
+						if selecteddItem.name ~= saplingName and selecteddItem.name ~= fuelName then
+							turtle.drop()
+						end
+					end
+				else
+                	turtle.drop()
+				end
+        end
+end
+
+local function provision()
+	turtle.digUp()
+	turtle.up()
+	local success,chestType = turtle.inspect()
+	turtle.down()
+	if success and chestType then
+		if chestType.name==fuelChest then
+			turtle.select(fuelSlot)
+			turtle.suck()
+			vide(fuelName)
+		elseif chestType.name==saplingChest then
+			turtle.select(saplingSlot)
+			turtle.suck()
+			vide(saplingName)
+		end
+	else
+		vide("special")
+	end
+end
+
+local function gocoffre()
+	local foundChest = false
+		while foundChest ~= true do
+			for i=0,3 do
+				if testBlock(chestName) then
+					foundChest = true
+					break
+				else
+					turtle.turnRight()
+				end
+			end
+			if foundChest ~= true then				
+				turtle.turnLeft()
+				for i=0,3 do
+					Energy()
+					if turtle.forward() then
+						if chemin() then
+							break
+						else
+							Energy()
+							turtle.back()
+							turtle.turnRight()
+						end
+					else
+						turtle.turnRight()
+					end
+				end
+			end
+		end
+		provision()
+end
+--turtle script made by Ardevlirn
+local function settingUp()
+		--gocoffre()
+		while turtle.detectDown() ~= true or preventStuck() do
+			Energy()
+			if preventStuck() then
+				turtle.digDown()
+			end
+			turtle.down()
+		end
+		local didMove = false
+		while chemin() ~= true do
+			if turtle.back() then
+				didMove = true
+			end
+			if chemin() ~= true then
+				if didMove then
+					turtle.forward()
+				end
+				turtle.turnRight()
+			end
+		end
+end
+
+local function start()
+local stop = false
+settingUp()
+while stop ~= true do
+	Energy()
+	for i=0,3 do
+		if testBlock(chestName) then
+			provision()
+		elseif testBlock(woodName) then
+			Energy()
+			coupe()
+			turtle.select(saplingSlot)
+			turtle.suck()
+		elseif testBlock(saplingName) then
+			turtle.select(saplingSlot)
+			turtle.suck()
+			Energy()
+		else
+			plante()
+			turtle.select(saplingSlot)
+			turtle.suck()
+		end
+		turtle.turnRight()
+	end
+	if turtle.getItemCount(maxSlot) ~= nil and turtle.getItemCount(maxSlot) >= 1 then
+		gocoffre()
+	end
+	if turtle.getItemCount(saplingSlot) ~= nil and turtle.getItemCount(saplingSlot) <= minSaplingInInventory then
+		local selecteddItem = 0
+		turtle.select(saplingSlot)
+		local saplingID = turtle.getItemDetail()
+        for slot = minSlot,maxSlot do
+                turtle.select(slot)
+				selecteddItem = turtle.getItemDetail()
+				if saplingID and selecteddItem then
+				 	if selecteddItem.name == saplingID.name then
+                		turtle.transferTo(saplingSlot,(64-saplingID.count))
+					end
+				end
+        end
+		if turtle.getItemCount(saplingSlot) ~= nil and goSearchSapling == true and turtle.getItemCount(saplingSlot) <= minSaplingInInventory then
+			gocoffre()
+		end
+	end
+	turtle.turnLeft()
+	for i=0,3 do
+		Energy()
+		if turtle.forward() then
+			if chemin() then
+				break
+			else
+				Energy()
+				turtle.back()
+				turtle.turnRight()
+			end
+		else
+			turtle.turnRight()
+		end
+	end
+	if turtle.getFuelLevel() ~= "unlimited" and turtle.getItemCount(fuelSlot) ~= nil and turtle.getItemCount(fuelSlot) <= minFuelInInventory then
+		local selecteddItem = 0
+		turtle.select(fuelSlot)
+		local fuelID = turtle.getItemDetail()
+        for slot = minSlot,maxSlot do
+                turtle.select(slot)
+				selecteddItem = turtle.getItemDetail()
+				if fuelID and selecteddItem then
+				 	if selecteddItem.name == fuelID.name then
+                		turtle.transferTo(fuelSlot,(64-fuelID.count))
+					end
+				end
+        end
+		if turtle.getItemCount(fuelSlot) ~= nil and turtle.getItemCount(fuelSlot) <= minFuelInInventory then
+			gocoffre()
+		end
+	end
+end
+end
+
+start()
